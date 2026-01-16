@@ -1,0 +1,32 @@
+# --- Dependencias de Node (muy pesadas para Git) ---
+**/node_modules/
+**/package-lock.json
+**/npm-debug.log*
+
+# --- Variables de Entorno (SEGURIDAD CRÍTICA) ---
+# Aquí es donde guardas tus contraseñas de DB y JWT_SECRET
+.env
+**/config/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Archivos generados por React (Frontend) ---
+frontend/build/
+frontend/.pnp
+frontend/.pnp.js
+
+# --- Archivos del sistema y logs ---
+.DS_Store
+Thumbs.db
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Carpetas de reportes/uploads (opcional) ---
+# Si no quieres subir los PDFs o fotos que suban los inspectores
+backend/uploads/
+backend/informes/*.pdf
