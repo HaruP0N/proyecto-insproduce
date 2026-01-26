@@ -1,10 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:4000/api', // La URL de tu servidor Node.js
+  baseURL: 'http://localhost:4000/api',
 });
 
-// Este interceptor añade el token de seguridad automáticamente si existe
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
