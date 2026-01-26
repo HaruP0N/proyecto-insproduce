@@ -1,53 +1,60 @@
+// backend/routes/auth.js
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { pool } = require('../config/db'); // Conectamos con tu base de datos fruticola-2
+const bcrypt = require('bcrypt');
+const { pool } = require('../config/db');
 
 router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = String(req.body.password || '').trim();
 
-    try {
-        // 1. Buscamos al usuario real en PostgreSQL
-        const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-        const user = result.rows[0];
+  if (!email || !password) {
+    return res.status(400).json({ msg: 'Email y contraseña son obligatorios' });
+  }
 
-        // 2. Si no existe el email
-        if (!user) {
-            return res.status(400).json({ msg: 'Usuario no encontrado' });
-        }
+  try {
+    // activo = true (hardening)
+    const result = await pool.query(
+      'SELECT id, nombre, email, password, rol, activo FROM usuarios WHERE LOWER(email)=LOWER($1) LIMIT 1',
+      [email]
+    );
 
-        // 3. Verificación de contraseña
-        // IMPORTANTE: Como en tu script anterior usabas texto plano, 
-        // aquí comparamos directamente. (Luego implementaremos bcrypt.compare)
-        if (password !== user.password) {
-            return res.status(400).json({ msg: 'Contraseña incorrecta' });
-        }
+    const user = result.rows[0];
 
-        // 4. Generar el Token usando tu variable de entorno
-        // Si process.env.JWT_SECRET no existe, usará 'contrasena123' por seguridad
-        const secret = process.env.JWT_SECRET || 'contrasena123';
-        
-        const token = jwt.sign(
-            { id: user.id, role: user.rol }, 
-            secret, 
-            { expiresIn: '8h' }
-        );
-
-        // 5. Respuesta exitosa para el Frontend
-        console.log(`[AUTH] Login exitoso: ${email}`);
-        res.json({
-            token,
-            role: user.rol,
-            user: { 
-                email: user.email,
-                nombre: user.nombre 
-            }
-        });
-
-    } catch (error) {
-        console.error('Error en el login:', error.message);
-        res.status(500).json({ msg: 'Error interno del servidor' });
+    // Mensaje genérico (no revelar si existe o no)
+    if (!user || user.activo === false) {
+      return res.status(401).json({ msg: 'Credenciales inválidas' });
     }
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
+      return res.status(401).json({ msg: 'Credenciales inválidas' });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('[AUTH] Falta JWT_SECRET en .env');
+      return res.status(500).json({ msg: 'Error interno del servidor' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.rol },
+      secret,
+      { expiresIn: '8h' }
+    );
+
+    console.log(`[AUTH] Login exitoso: ${user.email} (${user.rol})`);
+
+    return res.json({
+      token,
+      role: user.rol,
+      user: { id: user.id, email: user.email, nombre: user.nombre }
+    });
+  } catch (error) {
+    console.error('Error en login:', error.message);
+    return res.status(500).json({ msg: 'Error interno del servidor' });
+  }
 });
 
 module.exports = router;

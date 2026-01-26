@@ -1,58 +1,72 @@
+// frontend/src/components/Login.js
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Leaf, Lock, User } from 'lucide-react';
 
 const Login = ({ onLoginSuccess }) => {
-    const [credenciales, setCredenciales] = useState({ email: '', password: '' });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await axios.post('http://localhost:4000/api/auth/login', credenciales);
-            
-            // GUARDAMOS EN LOCALSTORAGE
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('rol', res.data.rol);
-            
-            console.log("LOGIN EXITOSO. ROL RECIBIDO:", res.data.rol);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-            // AVISAMOS A APP.JS
-            onLoginSuccess();
-            
-        } catch (err) {
-            alert("Error: Credenciales incorrectas");
-        }
-    };
+    const emailTrimmed = email.trim();
+    const passwordTrimmed = password.trim();
 
-    return (
-        <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '100%', maxWidth: '380px', backgroundColor: '#fff', padding: '40px', borderRadius: '20px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-                <div style={{ backgroundColor: '#4CAF50', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                    <Leaf color="#fff" size={30} />
-                </div>
-                <h2 style={{ color: '#2E7D32' }}>Insproduce</h2>
-                <form onSubmit={handleLogin}>
-                    <input 
-                        type="email" 
-                        placeholder="Email" 
-                        style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
-                        onChange={(e) => setCredenciales({...credenciales, email: e.target.value})} 
-                        required 
-                    />
-                    <input 
-                        type="password" 
-                        placeholder="Contraseña" 
-                        style={{ width: '100%', padding: '12px', marginBottom: '20px', borderRadius: '8px', border: '1px solid #ddd' }}
-                        onChange={(e) => setCredenciales({...credenciales, password: e.target.value})} 
-                        required 
-                    />
-                    <button type="submit" style={{ width: '100%', padding: '15px', backgroundColor: '#2E7D32', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                        ENTRAR
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
+    try {
+      const response = await axios.post('http://localhost:4000/api/auth/login', {
+        email: emailTrimmed,
+        password: passwordTrimmed
+      });
+
+      // backend responde: { token, role, user: {...} }
+      const token = response.data.token;
+      const role = response.data.role;
+
+      // Le avisamos al App para que rendee correctamente
+      onLoginSuccess({ token, role });
+
+    } catch (err) {
+      console.error("Error de autenticación:", err);
+      const msg = err?.response?.data?.msg || 'Credenciales incorrectas.';
+      alert(msg);
+    }
+  };
+
+  return (
+    <div className="flex h-screen items-center justify-center bg-gray-100" style={{ height: '70vh' }}>
+      <form onSubmit={handleSubmit} className="p-8 bg-white shadow-lg rounded-lg w-96"
+        style={{ padding: 32, background: '#fff', borderRadius: 14, width: 380, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 18, textAlign: 'center', color: '#2E7D32' }}>
+          INSPRODUCE QC
+        </h2>
+
+        <input
+          type="email"
+          placeholder="Email"
+          style={{ width: '100%', marginBottom: 12, padding: 10, borderRadius: 10, border: '1px solid #ddd' }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+
+        <input
+          type="password"
+          placeholder="Contraseña"
+          style={{ width: '100%', marginBottom: 18, padding: 10, borderRadius: 10, border: '1px solid #ddd' }}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+
+        <button
+          type="submit"
+          style={{ width: '100%', background: '#2E7D32', color: '#fff', padding: 12, borderRadius: 10, border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          Iniciar Sesión
+        </button>
+      </form>
+    </div>
+  );
 };
 
 export default Login;
