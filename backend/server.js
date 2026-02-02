@@ -1,9 +1,15 @@
+// backend/server.js
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+const { conectarDB } = require('./config/db');
+
 const app = express();
+
+// Conectar DB
+conectarDB();
 
 // Middlewares
 app.use(cors({
@@ -13,17 +19,20 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Servir carpetas públicas (si ya lo tienes para informes/uploads, déjalo aquí)
+// Static
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/informes', express.static(path.join(__dirname, 'informes')));
 
 // Rutas
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/usuarios', require('./routes/usuarios')); // ✅ NUEVO
-app.use('/api/asignaciones', require('./routes/inspeccionroutes'));
+app.use('/api/usuarios', require('./routes/usuarios'));
+app.use('/api/commodities', require('./routes/commodities'));
+app.use('/api/metric-templates', require('./routes/metricTemplatesRoutes'));
+
+// ⚠️ Si asignaciones es otra cosa, sepáralo después.
+// Por ahora dejo SOLO inspecciones acá para evitar duplicidad rara.
 app.use('/api/inspecciones', require('./routes/inspeccionroutes'));
 
-// Ruta base
 app.get('/', (req, res) => {
   res.send('servidor de control de calidad insproduce activo');
 });
@@ -31,7 +40,6 @@ app.get('/', (req, res) => {
 console.log('STATIC informes:', path.join(__dirname, 'informes'));
 console.log('STATIC uploads :', path.join(__dirname, 'uploads'));
 
-// Manejo de errores 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -40,7 +48,6 @@ app.use((req, res) => {
   });
 });
 
-// Encendido
 const puerto = process.env.PORT || 4000;
 app.listen(puerto, () => {
   console.log(`Servidor iniciado en el puerto: ${puerto}`);
