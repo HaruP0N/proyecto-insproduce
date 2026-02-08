@@ -8,6 +8,9 @@ const { conectarDB } = require('./config/db');
 
 const app = express();
 
+// Conectar DB
+conectarDB();
+
 // Middlewares
 app.use(cors({
   origin: ['http://localhost:3000'],
@@ -25,6 +28,9 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/commodities', require('./routes/commodities'));
 app.use('/api/metric-templates', require('./routes/metricTemplatesRoutes'));
+
+// ⚠️ Si asignaciones es otra cosa, sepáralo después.
+// Por ahora dejo SOLO inspecciones acá para evitar duplicidad rara.
 app.use('/api/inspecciones', require('./routes/inspeccionroutes'));
 
 app.get('/', (req, res) => {
@@ -43,16 +49,6 @@ app.use((req, res) => {
 });
 
 const puerto = process.env.PORT || 4000;
-
-// ✅ Arranque seguro: primero DB, luego listen
-(async () => {
-  try {
-    await conectarDB();
-    app.listen(puerto, () => {
-      console.log(`Servidor iniciado en el puerto: ${puerto}`);
-    });
-  } catch (e) {
-    console.error('❌ No se pudo iniciar el servidor porque falló la DB:', e.message);
-    process.exit(1);
-  }
-})();
+app.listen(puerto, () => {
+  console.log(`Servidor iniciado en el puerto: ${puerto}`);
+});
