@@ -13,7 +13,7 @@ const Login = ({ onLoginSuccess }) => {
     const passwordTrimmed = password.trim();
 
     try {
-      const response = await axios.post('http://localhost:4000/api/auth/login', {
+      const response = await axios.post('/api/auth/login', {
         email: emailTrimmed,
         password: passwordTrimmed
       });
