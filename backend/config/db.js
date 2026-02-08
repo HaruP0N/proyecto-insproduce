@@ -1,22 +1,47 @@
-const { Pool } = require('pg');
+const sql = require('mssql');
 require('dotenv').config();
 
-const pool = new Pool({
+const config = {
+  server: process.env.DB_SERVER,
+  database: process.env.DB_DATABASE,
   user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
-
-const conectarDB = async () => {
-  try {
-    await pool.query('SELECT NOW()');
-    console.log('Conectado a PostgreSQL: fruticola-2');
-  } catch (error) {
-    console.error('Error de conexión:', error.message);
-    process.exit(1);
-  }
+  port: Number(process.env.DB_PORT || 1433),
+  options: {
+    encrypt: true,
+    trustServerCertificate: false
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
+  },
+  connectionTimeout: 30000,
+  requestTimeout: 30000
 };
 
-module.exports = { pool, conectarDB };
+let pool;
+
+async function conectarDB() {
+  try {
+    pool = await sql.connect(config);
+    await pool.request().query('SELECT 1 as ok');
+    console.log('✅ Conectado a Azure SQL:', process.env.DB_DATABASE);
+  } catch (err) {
+    console.error('❌ Error de conexión Azure SQL:', err.message);
+    throw err;
+  }
+}
+
+async function query(text, params = {}) {
+  if (!pool) {
+    throw new Error('Pool no inicializado. Llama conectarDB() antes.');
+  }
+  const request = pool.request();
+  for (const [k, v] of Object.entries(params)) {
+    request.input(k, v);
+  }
+  return request.query(text);
+}
+
+module.exports = { conectarDB, query, sql };
