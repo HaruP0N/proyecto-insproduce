@@ -13,8 +13,7 @@ import {
   FileText
 } from 'lucide-react';
 
-// ✅ CAMBIO PRINCIPAL: API_BASE vacío para usar el proxy configurado en package.json
-const API_BASE = '';
+const API_BASE = 'http://localhost:4000';
 
 function safeStr(v) {
   if (v === null || v === undefined) return '';

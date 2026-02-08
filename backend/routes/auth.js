@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const { query } = require('../config/db');
+const { pool } = require('../config/db');
 
 router.post('/login', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
@@ -14,22 +14,20 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const r = await query(
-      `SELECT TOP 1 id, name, email, password_hash, role, active
-       FROM users
-       WHERE LOWER(email) = LOWER(@email)`,
-      { email }
+    // activo = true (hardening)
+    const result = await pool.query(
+      'SELECT id, nombre, email, password, rol, activo FROM usuarios WHERE LOWER(email)=LOWER($1) LIMIT 1',
+      [email]
     );
 
-    const user = r.recordset?.[0];
+    const user = result.rows[0];
 
-    if (!user || user.active === 0) {
+    // Mensaje genérico (no revelar si existe o no)
+    if (!user || user.activo === false) {
       return res.status(401).json({ msg: 'Credenciales inválidas' });
     }
 
-    // OJO: en tu script de Azure insertaste password_hash como texto plano (insproduce123)
-    // bcrypt.compare fallará si NO es hash real.
-    const ok = await bcrypt.compare(password, String(user.password_hash));
+    const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
       return res.status(401).json({ msg: 'Credenciales inválidas' });
     }
@@ -41,20 +39,20 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.rol },
       secret,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+      { expiresIn: '8h' }
     );
 
-    console.log(`[AUTH] Login exitoso: ${user.email} (${user.role})`);
+    console.log(`[AUTH] Login exitoso: ${user.email} (${user.rol})`);
 
     return res.json({
       token,
-      role: user.role,
-      user: { id: user.id, email: user.email, nombre: user.name }
+      role: user.rol,
+      user: { id: user.id, email: user.email, nombre: user.nombre }
     });
   } catch (error) {
-    console.error('[AUTH] Error en login:', error.message);
+    console.error('Error en login:', error.message);
     return res.status(500).json({ msg: 'Error interno del servidor' });
   }
 });

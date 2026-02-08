@@ -1,28 +1,22 @@
+// backend/routes/commodities.js
 const express = require('express');
 const router = express.Router();
 const { verificarToken } = require('../middleware/auth');
-const { query } = require('../config/db');
-
-function safeJsonParse(s, fallback) {
-  try {
-    if (s === null || s === undefined) return fallback;
-    if (typeof s === 'object') return s;
-    return JSON.parse(String(s));
-  } catch {
-    return fallback;
-  }
-}
+const { pool } = require('../config/db');
 
 // GET /api/commodities
 router.get('/', verificarToken, async (req, res) => {
   try {
-    const r = await query(
-      `SELECT id, code, name
-       FROM commodities
-       WHERE active=1 AND code<>'CHERRY'
-       ORDER BY name ASC`
+    const r = await pool.query(
+      `
+      SELECT id, code, name
+      FROM commodities
+      WHERE active = TRUE
+        AND code <> 'CHERRY'
+      ORDER BY name ASC
+      `
     );
-    return res.json(r.recordset);
+    return res.json(r.rows);
   } catch (e) {
     console.error('commodities:', e);
     return res.status(500).json({ msg: 'Error al cargar commodities' });
@@ -32,46 +26,50 @@ router.get('/', verificarToken, async (req, res) => {
 // GET /api/commodities/:code/template
 router.get('/:code/template', verificarToken, async (req, res) => {
   try {
-    const code = String(req.params.code || '').trim().toUpperCase();
+    const code = String(req.params.code || '').toUpperCase();
 
     if (code === 'CHERRY') {
       return res.status(400).json({ msg: 'CHERRY deshabilitado' });
     }
 
-    const c = await query(
-      `SELECT TOP 1 id, code, name, active
-       FROM commodities
-       WHERE code=@code AND active=1`,
-      { code }
+    const c = await pool.query(
+      `SELECT id, code, name FROM commodities WHERE code=$1 AND active=TRUE LIMIT 1`,
+      [code]
     );
-    const commodity = c.recordset[0];
+    const commodity = c.rows[0];
     if (!commodity) return res.status(404).json({ msg: 'Commodity no existe o está inactivo' });
 
-    const t = await query(
-      `SELECT TOP 1 id, name, version
-       FROM metric_templates
-       WHERE commodity_id=@commodity_id AND active=1
-       ORDER BY version DESC, id DESC`,
-      { commodity_id: commodity.id }
+    const t = await pool.query(
+      `
+      SELECT id, name, version
+      FROM metric_templates
+      WHERE commodity_id = $1 AND active = TRUE
+      ORDER BY version DESC
+      LIMIT 1
+      `,
+      [commodity.id]
     );
-    const template = t.recordset[0];
+    const template = t.rows[0];
     if (!template) return res.status(404).json({ msg: `No existe template activo para ${code}` });
 
-    const f = await query(
-      `SELECT [key], label, field_type, required, unit, min_value, max_value, options, order_index
-       FROM metric_fields
-       WHERE template_id=@template_id
-       ORDER BY order_index ASC, id ASC`,
-      { template_id: template.id }
+    const f = await pool.query(
+      `
+      SELECT key, label, field_type, required, unit, min_value, max_value, options, order_index
+      FROM metric_fields
+      WHERE template_id = $1
+      ORDER BY order_index ASC
+      `,
+      [template.id]
     );
 
-    const fields = f.recordset.map(row => ({
-      ...row,
-      required: !!row.required,
-      options: safeJsonParse(row.options, [])
-    }));
-
-    return res.json({ commodity, template, fields });
+    return res.json({
+      commodity,
+      template,
+      fields: f.rows.map(row => ({
+        ...row,
+        options: Array.isArray(row.options) ? row.options : (row.options || [])
+      }))
+    });
   } catch (e) {
     console.error('commodities template:', e);
     return res.status(500).json({ msg: 'Error al cargar template' });
